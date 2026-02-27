@@ -23,13 +23,17 @@ jobs:
       
       - name: Authenticate Source Org
         run: |
-          echo "${{ secrets.SOURCE_JWT_KEY }}" > ./source.key
-          sf org login jwt --client-id ${{ secrets.SOURCE_CLIENT_ID }} --jwt-key-file ./source.key --username ${{ secrets.SOURCE_USERNAME }} --alias source-org
+          sf org login web --client-id ${{ secrets.SOURCE_CLIENT_ID }} --instance-url ${{ secrets.SOURCE_INSTANCE_URL }} --alias source-org --no-prompt
+        env:
+          SF_CLIENT_SECRET: ${{ secrets.SOURCE_CLIENT_SECRET }}
+          SF_USERNAME: ${{ secrets.SOURCE_USERNAME }}
       
       - name: Authenticate Destination Org
         run: |
-          echo "${{ secrets.DEST_JWT_KEY }}" > ./dest.key
-          sf org login jwt --client-id ${{ secrets.DEST_CLIENT_ID }} --jwt-key-file ./dest.key --username ${{ secrets.DEST_USERNAME }} --alias dest-org
+          sf org login web --client-id ${{ secrets.DEST_CLIENT_ID }} --instance-url ${{ secrets.DEST_INSTANCE_URL }} --alias dest-org --no-prompt
+        env:
+          SF_CLIENT_SECRET: ${{ secrets.DEST_CLIENT_SECRET }}
+          SF_USERNAME: ${{ secrets.DEST_USERNAME }}
       
       - name: Retrieve Apex Classes from Source
         run: sf project retrieve start --metadata ApexClass --source-org source-org --target-dir ./retrieved
@@ -40,7 +44,4 @@ jobs:
       - name: Check Deployment Status
         if: always()
         run: sf project deploy report --target-org dest-org
-      
-      - name: Cleanup
-        if: always()
-        run: rm -f ./source.key ./dest.key
+
