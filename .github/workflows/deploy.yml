@@ -1,0 +1,46 @@
+name: Salesforce Deployment
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      
+      - name: Install Salesforce CLI
+        run: npm install --global @salesforce/cli
+      
+      - name: Authenticate Source Org
+        run: |
+          echo "${{ secrets.SOURCE_JWT_KEY }}" > ./source.key
+          sfdx auth jwt grant --clientid ${{ secrets.SOURCE_CLIENT_ID }} --jwtkeyfile ./source.key --username ${{ secrets.SOURCE_USERNAME }} --alias source-org
+      
+      - name: Authenticate Destination Org
+        run: |
+          echo "${{ secrets.DEST_JWT_KEY }}" > ./dest.key
+          sfdx auth jwt grant --clientid ${{ secrets.DEST_CLIENT_ID }} --jwtkeyfile ./dest.key --username ${{ secrets.DEST_USERNAME }} --alias dest-org
+      
+      - name: Retrieve from Source
+        run: sfdx project retrieve start --source-dir force-app --target-org source-org --wait 30
+      
+      - name: Deploy to Destination
+        run: sfdx project deploy start --source-dir force-app --target-org dest-org --test-level RunLocalTests --wait 30
+      
+      - name: Check Status
+        if: always()
+        run: sfdx project deploy report --target-org dest-org
+      
+      - name: Cleanup
+        if: always()
+        run: rm -f ./source.key ./dest.key
