@@ -24,22 +24,22 @@ jobs:
       - name: Authenticate Source Org
         run: |
           echo "${{ secrets.SOURCE_JWT_KEY }}" > ./source.key
-          sfdx auth jwt grant --clientid ${{ secrets.SOURCE_CLIENT_ID }} --jwtkeyfile ./source.key --username ${{ secrets.SOURCE_USERNAME }} --alias source-org
+          sf org login jwt --client-id ${{ secrets.SOURCE_CLIENT_ID }} --jwt-key-file ./source.key --username ${{ secrets.SOURCE_USERNAME }} --alias source-org
       
       - name: Authenticate Destination Org
         run: |
           echo "${{ secrets.DEST_JWT_KEY }}" > ./dest.key
-          sfdx auth jwt grant --clientid ${{ secrets.DEST_CLIENT_ID }} --jwtkeyfile ./dest.key --username ${{ secrets.DEST_USERNAME }} --alias dest-org
+          sf org login jwt --client-id ${{ secrets.DEST_CLIENT_ID }} --jwt-key-file ./dest.key --username ${{ secrets.DEST_USERNAME }} --alias dest-org
       
       - name: Retrieve from Source
-        run: sfdx project retrieve start --source-dir force-app --target-org source-org --wait 30
+        run: sf project retrieve start --metadata ApexClass --target-org source-org --output-dir ./retrieved --wait 30
       
       - name: Deploy to Destination
-        run: sfdx project deploy start --source-dir force-app --target-org dest-org --test-level RunLocalTests --wait 30
+        run: sf project deploy start --source-dir ./retrieved --target-org dest-org --test-level RunLocalTests --wait 30
       
       - name: Check Status
         if: always()
-        run: sfdx project deploy report --target-org dest-org
+        run: sf project deploy report --target-org dest-org
       
       - name: Cleanup
         if: always()
