@@ -23,17 +23,31 @@ jobs:
       
       - name: Authenticate Source Org
         run: |
-          sf org login web --client-id ${{ secrets.SOURCE_CLIENT_ID }} --instance-url ${{ secrets.SOURCE_INSTANCE_URL }} --alias source-org --no-prompt
-        env:
-          SF_CLIENT_SECRET: ${{ secrets.SOURCE_CLIENT_SECRET }}
-          SF_USERNAME: ${{ secrets.SOURCE_USERNAME }}
+          SOURCE_KEY_DIR=$(mktemp -d)
+          chmod 700 "$SOURCE_KEY_DIR"
+          echo "${{ secrets.SOURCE_JWT_KEY }}" > "$SOURCE_KEY_DIR/server.key"
+          chmod 600 "$SOURCE_KEY_DIR/server.key"
+          sf org login jwt \
+            --client-id "${{ secrets.SOURCE_CLIENT_ID }}" \
+            --jwt-key-file "$SOURCE_KEY_DIR/server.key" \
+            --username "${{ secrets.SOURCE_USERNAME }}" \
+            --instance-url "${{ secrets.SOURCE_INSTANCE_URL }}" \
+            --alias source-org
+          rm -rf "$SOURCE_KEY_DIR"
       
       - name: Authenticate Destination Org
         run: |
-          sf org login web --client-id ${{ secrets.DEST_CLIENT_ID }} --instance-url ${{ secrets.DEST_INSTANCE_URL }} --alias dest-org --no-prompt
-        env:
-          SF_CLIENT_SECRET: ${{ secrets.DEST_CLIENT_SECRET }}
-          SF_USERNAME: ${{ secrets.DEST_USERNAME }}
+          DEST_KEY_DIR=$(mktemp -d)
+          chmod 700 "$DEST_KEY_DIR"
+          echo "${{ secrets.DEST_JWT_KEY }}" > "$DEST_KEY_DIR/server.key"
+          chmod 600 "$DEST_KEY_DIR/server.key"
+          sf org login jwt \
+            --client-id "${{ secrets.DEST_CLIENT_ID }}" \
+            --jwt-key-file "$DEST_KEY_DIR/server.key" \
+            --username "${{ secrets.DEST_USERNAME }}" \
+            --instance-url "${{ secrets.DEST_INSTANCE_URL }}" \
+            --alias dest-org
+          rm -rf "$DEST_KEY_DIR"
       
       - name: Retrieve Apex Classes from Source
         run: sf project retrieve start --metadata ApexClass --source-org source-org --target-dir ./retrieved
