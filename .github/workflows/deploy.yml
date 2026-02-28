@@ -52,8 +52,16 @@ jobs:
         run: |
           SOURCE_KEY_DIR=$(mktemp -d)
           chmod 700 "$SOURCE_KEY_DIR"
-          echo "$SOURCE_JWT_KEY" > "$SOURCE_KEY_DIR/server.key"
+          # Handle keys stored with literal \n instead of real newlines
+          printf '%s' "$SOURCE_JWT_KEY" | sed 's/\\n/\n/g' > "$SOURCE_KEY_DIR/server.key"
           chmod 600 "$SOURCE_KEY_DIR/server.key"
+          # Validate the key looks like a PEM-encoded RSA private key
+          if ! grep -q "BEGIN.*PRIVATE KEY" "$SOURCE_KEY_DIR/server.key"; then
+            echo "::error::SOURCE_JWT_KEY does not appear to be a valid PEM private key."
+            echo "Ensure the secret contains a full RSA private key starting with -----BEGIN RSA PRIVATE KEY----- or -----BEGIN PRIVATE KEY-----."
+            rm -rf "$SOURCE_KEY_DIR"
+            exit 1
+          fi
           sf org login jwt \
             --client-id "$SOURCE_CLIENT_ID" \
             --jwt-key-file "$SOURCE_KEY_DIR/server.key" \
@@ -73,8 +81,16 @@ jobs:
         run: |
           DEST_KEY_DIR=$(mktemp -d)
           chmod 700 "$DEST_KEY_DIR"
-          echo "$DEST_JWT_KEY" > "$DEST_KEY_DIR/server.key"
+          # Handle keys stored with literal \n instead of real newlines
+          printf '%s' "$DEST_JWT_KEY" | sed 's/\\n/\n/g' > "$DEST_KEY_DIR/server.key"
           chmod 600 "$DEST_KEY_DIR/server.key"
+          # Validate the key looks like a PEM-encoded RSA private key
+          if ! grep -q "BEGIN.*PRIVATE KEY" "$DEST_KEY_DIR/server.key"; then
+            echo "::error::DEST_JWT_KEY does not appear to be a valid PEM private key."
+            echo "Ensure the secret contains a full RSA private key starting with -----BEGIN RSA PRIVATE KEY----- or -----BEGIN PRIVATE KEY-----."
+            rm -rf "$DEST_KEY_DIR"
+            exit 1
+          fi
           sf org login jwt \
             --client-id "$DEST_CLIENT_ID" \
             --jwt-key-file "$DEST_KEY_DIR/server.key" \
