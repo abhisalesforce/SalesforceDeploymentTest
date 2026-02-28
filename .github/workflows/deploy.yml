@@ -20,33 +20,69 @@ jobs:
       
       - name: Install Salesforce CLI
         run: npm install --global @salesforce/cli
+
+      - name: Validate Required Secrets
+        run: |
+          missing=()
+          [[ -z "$SOURCE_JWT_KEY" ]] && missing+=("SOURCE_JWT_KEY")
+          [[ -z "$SOURCE_CLIENT_ID" ]] && missing+=("SOURCE_CLIENT_ID")
+          [[ -z "$SOURCE_USERNAME" ]] && missing+=("SOURCE_USERNAME")
+          [[ -z "$DEST_JWT_KEY" ]] && missing+=("DEST_JWT_KEY")
+          [[ -z "$DEST_CLIENT_ID" ]] && missing+=("DEST_CLIENT_ID")
+          [[ -z "$DEST_USERNAME" ]] && missing+=("DEST_USERNAME")
+          if [[ ${#missing[@]} -gt 0 ]]; then
+            echo "::error::Missing required repository secrets: ${missing[*]}"
+            echo "Please configure these secrets in Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+        env:
+          SOURCE_JWT_KEY: ${{ secrets.SOURCE_JWT_KEY }}
+          SOURCE_CLIENT_ID: ${{ secrets.SOURCE_CLIENT_ID }}
+          SOURCE_USERNAME: ${{ secrets.SOURCE_USERNAME }}
+          DEST_JWT_KEY: ${{ secrets.DEST_JWT_KEY }}
+          DEST_CLIENT_ID: ${{ secrets.DEST_CLIENT_ID }}
+          DEST_USERNAME: ${{ secrets.DEST_USERNAME }}
       
       - name: Authenticate Source Org
+        env:
+          SOURCE_JWT_KEY: ${{ secrets.SOURCE_JWT_KEY }}
+          SOURCE_CLIENT_ID: ${{ secrets.SOURCE_CLIENT_ID }}
+          SOURCE_USERNAME: ${{ secrets.SOURCE_USERNAME }}
+          SOURCE_INSTANCE_URL: ${{ secrets.SOURCE_INSTANCE_URL }}
         run: |
           SOURCE_KEY_DIR=$(mktemp -d)
           chmod 700 "$SOURCE_KEY_DIR"
-          echo "${{ secrets.SOURCE_JWT_KEY }}" > "$SOURCE_KEY_DIR/server.key"
+          echo "$SOURCE_JWT_KEY" > "$SOURCE_KEY_DIR/server.key"
           chmod 600 "$SOURCE_KEY_DIR/server.key"
           sf org login jwt \
-            --client-id "${{ secrets.SOURCE_CLIENT_ID }}" \
+            --client-id "$SOURCE_CLIENT_ID" \
             --jwt-key-file "$SOURCE_KEY_DIR/server.key" \
-            --username "${{ secrets.SOURCE_USERNAME }}" \
-            --instance-url "${{ secrets.SOURCE_INSTANCE_URL }}" \
+            --username "$SOURCE_USERNAME" \
+            --instance-url "${SOURCE_INSTANCE_URL:-https://login.salesforce.com}" \
             --alias source-org
+          # Note: SOURCE_INSTANCE_URL defaults to https://login.salesforce.com (production).
+          # For sandbox orgs, set SOURCE_INSTANCE_URL to https://test.salesforce.com.
           rm -rf "$SOURCE_KEY_DIR"
       
       - name: Authenticate Destination Org
+        env:
+          DEST_JWT_KEY: ${{ secrets.DEST_JWT_KEY }}
+          DEST_CLIENT_ID: ${{ secrets.DEST_CLIENT_ID }}
+          DEST_USERNAME: ${{ secrets.DEST_USERNAME }}
+          DEST_INSTANCE_URL: ${{ secrets.DEST_INSTANCE_URL }}
         run: |
           DEST_KEY_DIR=$(mktemp -d)
           chmod 700 "$DEST_KEY_DIR"
-          echo "${{ secrets.DEST_JWT_KEY }}" > "$DEST_KEY_DIR/server.key"
+          echo "$DEST_JWT_KEY" > "$DEST_KEY_DIR/server.key"
           chmod 600 "$DEST_KEY_DIR/server.key"
           sf org login jwt \
-            --client-id "${{ secrets.DEST_CLIENT_ID }}" \
+            --client-id "$DEST_CLIENT_ID" \
             --jwt-key-file "$DEST_KEY_DIR/server.key" \
-            --username "${{ secrets.DEST_USERNAME }}" \
-            --instance-url "${{ secrets.DEST_INSTANCE_URL }}" \
+            --username "$DEST_USERNAME" \
+            --instance-url "${DEST_INSTANCE_URL:-https://login.salesforce.com}" \
             --alias dest-org
+          # Note: DEST_INSTANCE_URL defaults to https://login.salesforce.com (production).
+          # For sandbox orgs, set DEST_INSTANCE_URL to https://test.salesforce.com.
           rm -rf "$DEST_KEY_DIR"
       
       - name: Retrieve Apex Classes from Source
